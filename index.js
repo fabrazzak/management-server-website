@@ -37,6 +37,26 @@ async function run() {
       const result = await managementDatabase.insertOne(addPost);
       res.send(result)
     })
+    // Update post
+    app.put('/add-posts/:id',async(req,res)=>{
+      const id = req.params.id;
+      const query= {_id : new ObjectId(id)};
+      const option= {upsert:true};
+      const UpdatedData=req.body;
+      const Data={
+        $set:{
+          thumbnail:UpdatedData.thumbnail,
+          title:UpdatedData.title,
+          description:UpdatedData.description,
+          category:UpdatedData.category,
+          location:UpdatedData.location,
+          volunteers_needed:UpdatedData.volunteers_needed,
+          deadline:UpdatedData.deadline
+        }
+      }
+      const result = await managementDatabase.updateOne(query,Data,option);
+      res.send( result)
+    })
     // get limit add post
     app.get("/post",async(req,res)=>{
       const result =await managementDatabase.find().limit(6).toArray();
