@@ -28,19 +28,58 @@ async function run() {
     await client.connect();
 
     const managementDatabase = client.db("managementDB").collection("management");
-    
+
+    const  BeVolunteerCollection= client.db("managementDB").collection("BeVolunteer");
+
     // save a add post database db
     app.post('/add-posts',async(req,res)=>{
       const addPost= req.body;
       const result = await managementDatabase.insertOne(addPost);
       res.send(result)
     })
-    // get all add post
-    app.get("/posts",async(req,res)=>{
-      const result =await managementDatabase.find().toArray();
+    // get limit add post
+    app.get("/post",async(req,res)=>{
+      const result =await managementDatabase.find().limit(6).toArray();
+      res.send(result)
+    })
+     // get all add post
+     app.get("/posts",async(req,res)=>{
+      const result = await managementDatabase.find().toArray();
       res.send(result)
     })
 
+    // Get specific One data
+    app.get("/post/:id", async (req,res)=>{
+      const id = req.params.id;
+      const query= {_id: new ObjectId(id)}
+      const result = await managementDatabase.findOne(query);
+      res.send( result)
+    })
+    
+     // Get specific One data
+     app.get("/posts/:id", async (req,res)=>{
+      const id = req.params.id;
+      const query= {_id: new ObjectId(id)}
+      const result = await managementDatabase.findOne(query);
+      res.send( result)
+    })
+
+    // BeVolunteer
+    app.post("/BeVolunteer",async(req ,res)=>{
+      const requestVolunteer= req.body;
+      console.log(requestVolunteer);
+      const query= {_id:new ObjectId(requestVolunteer.post_id)}
+      const findPost=await managementDatabase.findOne(query)
+      if (!findPost) {
+        return res.status(404).send({message:"Post Not Fount"})
+      }
+      const updatePost= await managementDatabase.updateOne(query,{$inc:{volunteers_needed:-1}})
+      if (updatePost.modifiedCount === 0) {
+        return res.status(500).send({ message: "Failed to update the post" });
+    }
+      const result= await BeVolunteerCollection.insertOne(requestVolunteer);
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
