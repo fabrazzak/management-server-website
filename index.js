@@ -1,5 +1,7 @@
 const express = require('express')
 const cors= require('cors')
+const jwt = require('jsonwebtoken');
+const cookieParser= require("cookie-parser");
 const app = express()
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port=process.env.PORT || 5000
@@ -7,9 +9,12 @@ require('dotenv').config()
 
 // middleware
 
-app.use(cors())
+app.use(cors({
+  origin:['http://localhost:5173'],
+  credentials: true
+}))
 app.use(express.json())
-
+app.use(cookieParser())
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cubbi.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -57,6 +62,13 @@ async function run() {
       const result = await managementDatabase.updateOne(query,Data,option);
       res.send( result)
     })
+    // Delete
+    app.delete('/posts/:id',async(req,res)=>{
+      const id = req.params.id;
+      const query={_id:new ObjectId(id)};
+      const result=await managementDatabase.deleteOne(query);
+      res.send(result)
+    })
     // get limit add post
     app.get("/post",async(req,res)=>{
       const result =await managementDatabase.find().limit(6).toArray();
@@ -64,8 +76,16 @@ async function run() {
     })
      // get all add post
      app.get("/posts",async(req,res)=>{
-      const result = await managementDatabase.find().toArray();
-      res.send(result)
+      const search = req.query.search || ""; 
+      const query = {
+        title: {
+          $regex: search,
+          $options: "i",
+        },
+      };
+      const result = await managementDatabase.find(query).toArray();
+      res.send(result);
+    
     })
 
     // Get specific One data
@@ -99,6 +119,35 @@ async function run() {
     }
       const result= await BeVolunteerCollection.insertOne(requestVolunteer);
       res.send(result)
+    })
+
+    // // BeVolunteer get
+    app.get("/BeVolunteer-Post",async(req,res)=>{
+      // const query= req.query;
+      // console.log(query);
+      const cursor= BeVolunteerCollection.find();
+      const result=await cursor.toArray();
+      res.send(result)
+    })
+
+
+    // Auth related Api
+    app.post("/jwt",(req,res)=>{
+      const user= req.body;
+      const token= jwt.sign(user,process.env.ACCESS_TOKEN_SECRET, {expiresIn:"5h"});
+      res.cookie("token",token,{
+        httpOnly:true,
+        secure:false
+      })
+      .send({success:true})
+    });
+
+    app.post("/logout",(req,res)=>{
+      res.clearCookie("token",{
+        httpOnly:true,
+        secure:false
+      })
+      .send({success:true})
     })
 
     // Send a ping to confirm a successful connection
