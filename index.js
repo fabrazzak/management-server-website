@@ -142,6 +142,7 @@ async function run() {
       }
       const query= {_id: new ObjectId(id)}
       const result = await managementDatabase.findOne(query);
+      // res.send( result)
       res.send( result)
     })
 
