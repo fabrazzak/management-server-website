@@ -106,10 +106,19 @@ async function run() {
           $options: "i",
         },
       };
+
       const result = await managementDatabase.find(query).toArray();
       res.send(result);
     })
+    // my Post Job get
+    app.get("/my_posts", async(req,res)=>{
+      const email = req.query.email;
+      console.log(email);
     
+     const query={ organizeEmail:email }
+      const result = await managementDatabase.find(query).toArray();
+      res.send(result);
+    })
 
     // Get specific One data
     app.get("/post/:id",verifyToken, async (req,res)=>{
@@ -122,6 +131,7 @@ async function run() {
       const result = await managementDatabase.findOne(query);
       res.send( result)
     })
+    // 
     
      // Get specific One data
      app.get("/posts/:id",verifyToken, async (req,res)=>{
@@ -163,6 +173,7 @@ async function run() {
       const result=await cursor.toArray();
       res.send(result)
     })
+
     // BeVolunteer delete
     app.delete('/BeVolunteer-Post/:id',async(req,res)=>{
 
