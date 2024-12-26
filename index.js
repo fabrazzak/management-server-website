@@ -16,6 +16,22 @@ app.use(cors({
 app.use(express.json())
 app.use(cookieParser())
 
+const verifyToken=(req,res,next)=>{
+  const token= req.cookies?.token;
+  if (!token) {
+    return res.status(401).send({message:"unauthorized access"})
+  }
+  // verify token
+  jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+    if (err) {
+      return res.status(401).send({message:"unauthorized access"})
+    }
+    req.user=decoded;
+    next()
+  })
+ 
+}
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cubbi.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -34,11 +50,18 @@ async function run() {
 
     const managementDatabase = client.db("managementDB").collection("management");
 
+
     const  BeVolunteerCollection= client.db("managementDB").collection("BeVolunteer");
 
     // save a add post database db
-    app.post('/add-posts',async(req,res)=>{
+    app.post('/add-posts',verifyToken,async(req,res)=>{
       const addPost= req.body;
+
+      console.log(req.user);
+      if (req.user.email !== req.user.email) {
+        return res.status(403).send({message:"forbidden access"})
+      }
+
       const result = await managementDatabase.insertOne(addPost);
       res.send(result)
     })
@@ -85,20 +108,28 @@ async function run() {
       };
       const result = await managementDatabase.find(query).toArray();
       res.send(result);
-    
     })
+    
 
     // Get specific One data
-    app.get("/post/:id", async (req,res)=>{
+    app.get("/post/:id",verifyToken, async (req,res)=>{
       const id = req.params.id;
+      console.log(req.user);
+      if (req.user.email !== req.user.email) {
+        return res.status(403).send({message:"forbidden access"})
+      }
       const query= {_id: new ObjectId(id)}
       const result = await managementDatabase.findOne(query);
       res.send( result)
     })
     
      // Get specific One data
-     app.get("/posts/:id", async (req,res)=>{
+     app.get("/posts/:id",verifyToken, async (req,res)=>{
       const id = req.params.id;
+      console.log(req.user);
+      if (req.user.email !== req.user.email) {
+        return res.status(403).send({message:"forbidden access"})
+      }
       const query= {_id: new ObjectId(id)}
       const result = await managementDatabase.findOne(query);
       res.send( result)
@@ -122,14 +153,24 @@ async function run() {
     })
 
     // // BeVolunteer get
-    app.get("/BeVolunteer-Post",async(req,res)=>{
-      // const query= req.query;
-      // console.log(query);
+    app.get("/BeVolunteer-Post",verifyToken,async(req,res)=>{
+      
+      console.log(req.user);
+      if (req.user.email !== req.user.email) {
+        return res.status(403).send({message:"forbidden access"})
+      }
       const cursor= BeVolunteerCollection.find();
       const result=await cursor.toArray();
       res.send(result)
     })
+    // BeVolunteer delete
+    app.delete('/BeVolunteer-Post/:id',async(req,res)=>{
 
+      const id = req.params.id;
+      const query={_id:new ObjectId(id)};
+      const result=await BeVolunteerCollection.deleteOne(query);
+      res.send(result)
+    })
 
     // Auth related Api
     app.post("/jwt",(req,res)=>{
