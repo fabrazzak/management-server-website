@@ -10,7 +10,7 @@ require('dotenv').config()
 // middleware
 
 app.use(cors({
-  origin:['http://localhost:5173',"https://volunteer-management-30292.web.app"],
+  origin:"https://volunteer-management-30292.web.app",
   credentials: true
 }))
 app.use(express.json())
@@ -56,21 +56,24 @@ async function run() {
     // save a add post database db
     app.post('/add-posts',verifyToken,async(req,res)=>{
       const addPost= req.body;
-
-      console.log(req.user);
-      if (req.user.email !== req.user.email) {
+   
+      if (req.user.email !==addPost.organizeEmail) {
         return res.status(403).send({message:"forbidden access"})
       }
 
       const result = await managementDatabase.insertOne(addPost);
       res.send(result)
+      console.log(result);
     })
     // Update post
     app.put('/add-posts/:id',async(req,res)=>{
       const id = req.params.id;
+      console.log(id);
       const query= {_id : new ObjectId(id)};
+
       const option= {upsert:true};
       const UpdatedData=req.body;
+      console.log(UpdatedData);
       const Data={
         $set:{
           thumbnail:UpdatedData.thumbnail,
@@ -121,12 +124,9 @@ async function run() {
     })
 
     // Get specific One data
-    app.get("/post/:id",verifyToken, async (req,res)=>{
+    app.get("/post/:id", async (req,res)=>{
       const id = req.params.id;
-      console.log(req.user);
-      if (req.user.email !== req.user.email) {
-        return res.status(403).send({message:"forbidden access"})
-      }
+
       const query= {_id: new ObjectId(id)}
       const result = await managementDatabase.findOne(query);
       res.send( result)
@@ -134,12 +134,9 @@ async function run() {
     // 
     
      // Get specific One data
-     app.get("/posts/:id",verifyToken, async (req,res)=>{
+     app.get("/posts/:id", async (req,res)=>{
       const id = req.params.id;
-      console.log(req.user);
-      if (req.user.email !== req.user.email) {
-        return res.status(403).send({message:"forbidden access"})
-      }
+     
       const query= {_id: new ObjectId(id)}
       const result = await managementDatabase.findOne(query);
       // res.send( result)
@@ -165,12 +162,14 @@ async function run() {
 
     // // BeVolunteer get
     app.get("/BeVolunteer-Post",verifyToken,async(req,res)=>{
-      
-      console.log(req.user);
-      if (req.user.email !== req.user.email) {
+      const {email} = req.query;
+
+      if (req.user.email !==email) {
         return res.status(403).send({message:"forbidden access"})
       }
-      const cursor= BeVolunteerCollection.find();
+      const query = {user_email:email}
+      const cursor= BeVolunteerCollection.find(query);
+
       const result=await cursor.toArray();
       res.send(result)
     })
@@ -189,16 +188,19 @@ async function run() {
       const user= req.body;
       const token= jwt.sign(user,process.env.ACCESS_TOKEN_SECRET, {expiresIn:"5h"});
       res.cookie("token",token,{
-        httpOnly:true,
-        secure:false
+        httpOnly: true,
+                secure: process.env.NODE_ENV === 'production', 
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
       })
       .send({success:true})
     });
 
     app.post("/logout",(req,res)=>{
       res.clearCookie("token",{
-        httpOnly:true,
-        secure:false
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', 
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+       
       })
       .send({success:true})
     })
