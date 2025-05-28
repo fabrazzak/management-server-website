@@ -1,12 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const cookieParser = require('cookie-parser');
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config();
-
 const app = express();
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
+require('dotenv').config();
 
 // Middleware
 app.use(cors({
@@ -14,24 +11,9 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-app.use(cookieParser());
-
-// JWT verification middleware
-const verifyToken = (req, res, next) => {
-  const token = req.cookies?.token;
-  if (!token) {
-    return res.status(401).send({ message: "unauthorized access" });
-  }
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({ message: "unauthorized access" });
-    }
-    req.user = decoded;
-    next();
-  });
-};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cubbi.mongodb.net/?retryWrites=true&w=majority`;
+
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -45,35 +27,34 @@ async function run() {
     const managementDatabase = client.db("managementDB").collection("management");
     const BeVolunteerCollection = client.db("managementDB").collection("BeVolunteer");
 
-    app.post('/add-posts', verifyToken, async (req, res) => {
+    // Add post
+    app.post('/add-posts', async (req, res) => {
       const addPost = req.body;
-      if (req.user.email !== addPost.organizeEmail) {
-        return res.status(403).send({ message: "forbidden access" });
-      }
       const result = await managementDatabase.insertOne(addPost);
       res.send(result);
     });
 
+    // Update post
     app.put('/add-posts/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const option = { upsert: true };
-      const UpdatedData = req.body;
-      const Data = {
+      const updatedData = req.body;
+      const data = {
         $set: {
-          thumbnail: UpdatedData.thumbnail,
-          title: UpdatedData.title,
-          description: UpdatedData.description,
-          category: UpdatedData.category,
-          location: UpdatedData.location,
-          volunteers_needed: UpdatedData.volunteers_needed,
-          deadline: UpdatedData.deadline
+          thumbnail: updatedData.thumbnail,
+          title: updatedData.title,
+          description: updatedData.description,
+          category: updatedData.category,
+          location: updatedData.location,
+          volunteers_needed: updatedData.volunteers_needed,
+          deadline: updatedData.deadline
         }
       };
-      const result = await managementDatabase.updateOne(query, Data, option);
+      const result = await managementDatabase.updateOne(query, data, { upsert: true });
       res.send(result);
     });
 
+    // Delete post
     app.delete('/posts/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -81,20 +62,26 @@ async function run() {
       res.send(result);
     });
 
+    // Get limited posts
     app.get("/post", async (req, res) => {
       const result = await managementDatabase.find().limit(6).toArray();
       res.send(result);
     });
 
+    // Get all posts (with search)
     app.get("/posts", async (req, res) => {
       const search = req.query.search || "";
       const query = {
-        title: { $regex: search, $options: "i" }
+        title: {
+          $regex: search,
+          $options: "i",
+        },
       };
       const result = await managementDatabase.find(query).toArray();
       res.send(result);
     });
 
+    // Get user posts
     app.get("/my_posts", async (req, res) => {
       const email = req.query.email;
       const query = { organizeEmail: email };
@@ -102,6 +89,7 @@ async function run() {
       res.send(result);
     });
 
+    // Get specific post
     app.get("/post/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -109,6 +97,7 @@ async function run() {
       res.send(result);
     });
 
+    // Get specific post (duplicate endpoint)
     app.get("/posts/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -116,6 +105,7 @@ async function run() {
       res.send(result);
     });
 
+    // Volunteer for a post
     app.post("/BeVolunteer", async (req, res) => {
       const requestVolunteer = req.body;
       const query = { _id: new ObjectId(requestVolunteer.post_id) };
@@ -131,16 +121,15 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/BeVolunteer-Post", verifyToken, async (req, res) => {
-      const { email } = req.query;
-      if (req.user.email !== email) {
-        return res.status(403).send({ message: "forbidden access" });
-      }
+    // Get volunteer requests
+    app.get("/BeVolunteer-Post", async (req, res) => {
+      const email = req.query.email;
       const query = { user_email: email };
       const result = await BeVolunteerCollection.find(query).toArray();
       res.send(result);
     });
 
+    // Delete volunteer request
     app.delete('/BeVolunteer-Post/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -148,38 +137,18 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/jwt", (req, res) => {
-      const user = req.body;
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "5h" });
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-      }).send({ success: true });
-    });
-
-    app.post("/logout", (req, res) => {
-      res.clearCookie("token", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-      }).send({ success: true });
-    });
-
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-
+    console.log("Connected to MongoDB!");
   } finally {
-    // Optional: Keep client open or close if needed
+    // Optional: Keep connection open
   }
 }
-
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-  res.send("Volunteer management Server");
+  res.send("Volunteer Management Server");
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
