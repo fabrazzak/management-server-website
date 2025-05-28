@@ -10,7 +10,7 @@ require('dotenv').config()
 // middleware
 
 app.use(cors({
-  origin:"https://volunteer-management-30292.web.app",
+  origin:"http://localhost:5173/",
   credentials: true
 }))
 app.use(express.json())
